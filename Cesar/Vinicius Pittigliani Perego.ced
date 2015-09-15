@@ -1,0 +1,842 @@
+;;Os Comentários em c utilizam-se de variáveis globais,as mesmas estão escritar no final do programa junto de suas correspondentes em Assembly de César
+;Aluno: Vinicius Pittigliani Perego
+;Cartao UFRGS: 242287
+;int main()
+;{
+;   entrada();
+;}
+
+ORG 0
+MOV #pilha,R6 ;inicializa pilha
+;------------------------------------------------------------------------------------------------------------------------------------------------------------
+;	void entrada(){
+;    char * entrada="Vinicius Perego Cartao:242287";
+;	    escreveNoVisor(idAluno,35,0);
+;    espera_enter();
+;	resumo();
+;	}
+MOV #35,R0          ; tamanho da mensagem (em caracteres)
+MOV #entrada,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR ;
+JSR R7,espera_enter
+JMP resumo
+;------------------------------------------------------------------------------------------------------------------------------------------------------------
+;void arruma_str(char * arrumado){
+;
+;}
+arruma_str:CLR R5
+MOV R1,R2 ;R2->ponteiro pro inicio
+MOV R2,R4
+ADD #5,R4
+remove_zero:MOV (R1),R3
+ASR R3
+ASR R3
+ASR R3
+ASR R3
+ASR R3
+ASR R3
+ASR R3
+ASR R3
+CMP R3,#48
+BNE local_pont
+INC R1
+CMP R1,R4
+BEQ ehzero
+BR remove_zero
+
+;**********************************************************
+; void uint2str(char *s, uint n)
+;	2(R6) -> n -> R2
+;	4(R6) -> s -> R1
+;
+;	Lacos  -> R5
+;	pTab10 -> R4
+;	dig    -> R3
+;
+;**********************************************************
+Tab10:		DAW	10000, 1000, 100, 10
+uint2str:
+	MOV	2(R6),R1	; R1 = s
+	MOV	4(R6),R2	; R2 = n
+
+	MOV	#Tab10,R4	; pTab10 = Tab10;
+	MOV	#4,R5		; Lacos = 4;
+	
+Loop:				; do {
+	MOV	#'0',R3		; 	dig = '0';
+
+LoopInterno:
+	CMP	R2,(R4)		; 	while (n >= *pTab10) {
+	BLT	EhMenor
+	INC	R3			; 		++dig;
+	SUB	(R4),R2		; 		n -= *pTab10;
+	JMP	LoopInterno	; 	}
+
+EhMenor:
+	MOV	-1(R1),R0	; 	*s++ = dig;
+	AND	#HFF00,R0
+	OR	R3,R0
+	MOV	R0,-1(R1)
+	INC	R1
+	
+	ADD	#2,R4		; 	++pTab10;
+
+	SOB	R5,Loop		; } while (--Lacos);
+	
+	ADD	#'0',R2		; *s++ = n + ‘0’;
+	MOV	-1(R1),R0
+	AND	#HFF00,R0
+	OR	R2,R0
+	MOV	R0,-1(R1)
+	INC	R1
+	
+	MOV	-1(R1),R0	; *s++ = '\0;
+	AND	#HFF00,R0
+	MOV	R0,-1(R1)
+	
+	RTS	R7
+
+
+local_pont: CMP R1,R2
+BEQ string_cheia
+desloca:MOV (R1),(R2)
+INC R1
+INC R2
+INC R5
+CMP R1,R4
+BNE desloca
+
+fim_arruma:MOV R5,tamanho_String
+ RTS R7
+ string_cheia:MOV #5,tamanho_String
+ RTS R7
+
+ ehzero: MOV #1,tamanho_String
+ RTS R7
+
+
+;**********************************************************
+; void str2int( int *n, char *s)
+;	2(R6) -> n -> R3
+;	4(R6) -> s -> R0
+;
+;**********************************************************
+str2int_2:
+	MOV	2(R6),R3	; R3 = n
+	MOV	4(R6),R0	; R0 = s
+	
+	MOV	R0,-(R6)	; *n = str2int(s);
+	JSR	R7,str2int_1
+	ADD	#2,R6
+
+	MOV	R0,(R3)
+
+	RTS	R7
+
+
+;**********************************************************
+; int str2int( char *s)
+;	2(R6) -> s -> R1
+;
+;	int neg -> R5
+;	int n   -> R4
+;**********************************************************
+str2int_1:
+	MOV	2(R6),R1	; R1 = s
+
+	CLR	R5			; neg = false;
+	
+	MOV	-1(R1),R0	; if ( *s == '-' ) {
+	AND	#HFF00,R0
+	CMP	R0,#'-'
+	BNE	EhPositivos2i
+
+	INC	R5			;	neg = true
+	INC	R1			;	++s;
+					; }
+
+EhPositivos2i:
+	CLR	R4			; n = 0;
+
+;	2(R6) -> s -> R1
+;	int neg -> R5
+;	int n   -> R4
+Loops2i:			
+	MOV	-1(R1),R0	; while ( *s != ‘\0’ ) {
+	AND	#H00FF,R0
+	BEQ	LoopOutput
+				
+	SUB	#'0',R0		;	n = 10 * n + (*s - '0');
+	ASL	R4
+	MOV	R4,R2
+	ASL	R4
+	ASL	R4
+	ADD	R2,R4
+	ADD	R0,R4
+
+	INC	R1			;	++s;
+
+	JMP	Loops2i		; }
+
+LoopOutput:
+	TST	R5			; if (neg) {
+	BEQ	ret_str2int_1
+
+	NEG	R4			;	n = - n;
+					; }
+ret_str2int_1:
+	MOV	R4,R0		; return n;
+	RTS	R7
+
+;-----------------------------------------------------------------------------------------
+;void selecao_engenheiro(){
+;  char * eng_selecao="Engenheiro:";
+;   escreveNoVisor(eng_selecao,11,0);
+;	char posicao=11;
+;	small int numero_lido;
+;	char numero_lidoString;
+;	while(buffer!=13){
+;		if(status && posicao<15){
+;		posicao++;
+;		}
+;		}
+;	if(posicao==11){
+;	acoes();
+;	}
+;	str2int(numero_lido,&(visor+11));
+;	if(numero_lido< ne-1){
+;	relatorio_engenheiro();
+;	}else{
+;	msg_erro();
+;	}
+;	}
+selecao_engenheiro:CLR buffer
+JSR R7,_S_LIMPA_VISOR_ULTRA
+MOV #11,R0          ; tamanho da mensagem (em caracteres)
+MOV #eng_palavra_sel,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+MOV #11,R5
+CLR status
+espera_selecao:
+MOV #95,visor(R5)
+CMP STATUS,#128
+	BNE espera_selecao
+	CMP buffer,#8
+	BEQ apaga_digito
+CMP buffer,#13
+BEQ verifica_numero
+CMP #58,buffer
+	BLS limpa
+testa_maior47:CMP buffer,#47
+         BGE escreve_digito
+
+	BR limpa
+escreve_digito:CMP R5,#15
+	BEQ limpa
+	MOV buffer,visor(R5)
+	INC R5		
+limpa:	CLR status
+	CLR buffer
+	BR espera_selecao
+apaga_digito:CMP R5,#11
+	BEQ limpa
+	MOV #0,visor(R5)
+	DEC R5
+	CLR visor(R5)
+	CLR status
+	CLR buffer
+	BR espera_selecao
+verifica_numero:
+CMP #11,R5
+BEQ vai_acoes
+MOV #0,visor(R5)
+	MOV	#visor+12,-(R6)	; s
+	MOV #numero_lido,-(R6)		; &n
+	JSR	R7,str2int_2
+	ADD	#4,R6
+	CMP ne,numero_lido
+	BGT relatorio_engenheiro
+;-------------------------------------------------------------------------------------------------------------------------
+
+erro:	JSR R7,_S_LIMPA_VISOR_ULTRA
+MOV #20,R0          ; tamanho da mensagem (em caracteres)
+MOV #erro_string,R1          ; endereco da mensagem a ser escrita no visor
+    MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+CLR buffer
+JSR R7,espera_enter
+JMP selecao_engenheiro
+;-------------------------------------------------------------------------------------------------------------------------
+
+
+
+vai_acoes: JMP acoes
+
+;-----------------------------------------------------------------------------------------------------------------------------------
+;void calcula_lucro(int numeroEngenheiro){
+	;int nmr_viagens;
+	;int *apontaEng=&(ListaEng+numeroEngenheiro);//apontando pro indice 0 das viagens do eng selecionado
+	;apontaEng++;//passa a apontar para a primeira viagem
+;	nmr_viagens=*(ListaEng+numeroEngenheiro);
+;	while(nmr_viagens){
+;	lucro_eng+=*(ListaCid + *(apontaEng));//soma a posicao de lucro_eng o valor contido na lista cidade atraves do indice em que o apontaEng achou na lista de  viagem do engenheiro
+	;apontaEng++;
+	;nmr_viagens--;
+	;}
+	
+	;}
+
+calcula_lucro:CLR R4
+MOV le,R0  ;ponteiro
+ASL R5
+ADD R5,R0
+MOV (R0),R1
+MOV (R1),R1
+TST R1
+BEQ fim_CalculaLucro
+MOV lc,R2
+MOV (R0),R3
+ADD #2,R3
+soma_lucro: MOV (R3)+,R5
+ASL R5
+ADD R5,R2
+ADD (R2),R4
+MOV lc,R2
+SOB R1,soma_lucro
+
+fim_CalculaLucro:MOV R4,lucro_eng
+RTS R7
+;-------------------------------------------------------------------------------
+;relatorio_engenheiro(){
+;	char * eng_relatorioStr="Engenheiro:";
+;	escreveNoVisor(&eng_relatorioStr,11,0);
+;	escreveNoVisor(&numero_lidoString,tamanho_String,12);
+;	calcula_lucro(numero_lido);
+;	if(!(lucro_eng)){
+;	char *neutro=", sem lucro ou prejuizo";
+;	escreveNoVisor(&neutro,23,posicao_centavos)
+;	}else if (lucro_eng<0){
+;	   char *prejuizo=", prejuizo R$ ";
+;		escreveNoVisor(&prejuizo,14,posicao_centavos);
+;		uint2str(&lucro_String,lucro_eng);
+;		arruma_String(&lucro_String);
+;		escreveNoVisor(&lucro_String,tamanho_String,posicao_centavos);
+;	}else{
+;		   char *lucro=", lucro R$ ";
+;		escreveNoVisor(&lucro,11,posicao_centavos);
+;		
+;		uint2str(&lucro_String,lucro_eng);
+;	     arruma_String(&lucro_String);
+;			escreveNoVisor(&lucro_String,tamanho_String,posicao_centavos);
+;
+;	
+;	}
+;		espera_enter();
+;		selecao_engenheiro();
+;	}
+
+vai_imparcial:JMP imparcial
+relatorio_engenheiro:  CLR buffer
+JSR R7,_S_LIMPA_VISOR_ULTRA
+CLR R4
+MOV le,R0 
+MOV numero_lido,R5
+JSR R7,calcula_lucro
+MOV #10,R0          ; tamanho da mensagem (em caracteres)
+MOV #eng_palavra_sel,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+MOV numero_lido,-(R6)		; n    
+MOV #numero_lido_String,-(R6)	; s------/
+JSR R7,uint2str	
+ADD #4,R6
+MOV #numero_lido_String,R1 ;*s
+	JSR R7,arruma_str ;ARRUMA STRING
+MOV tamanho_String,R0          ; tamanho da mensagem (em caracteres)
+MOV #numero_lido_String,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor+11,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+	 INC R2
+	 MOV R2,posicao_centavos 
+MOV lucro_eng,R4
+TST R4
+BEQ vai_imparcial
+BMI prejuizo
+
+MOV #11,R0          ; tamanho da mensagem (em caracteres)
+MOV #frase_lucro,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor+11,R2
+ADD tamanho_String,R2
+JSR R7,_S_ESCREVER_NO_VISOR 
+inc r2
+MOV R2,posicao_centavos 
+MOV lucro_eng,-(R6)		; n
+MOV #lucro_String,-(R6)	; s
+   JSR R7,uint2str	
+   ADD #4,R6
+   MOV #lucro_String,R1 ;*s
+	JSR R7,arruma_str ;ARRUMA STRING
+   MOV tamanho_String,R0          ; tamanho da mensagem (em caracteres)		
+MOV #lucro_String,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR
+	INC R2
+	 MOV R2,posicao_centavos  
+	MOV #3,R0          ; tamanho da mensagem (em caracteres)		
+MOV #centavos,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+JMP espera_relatorio
+
+prejuizo:MOV #14,R0          ; tamanho da mensagem (em caracteres)
+MOV #prejuizo_String,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor+11,R2
+ADD tamanho_String,R2
+JSR R7,_S_ESCREVER_NO_VISOR 
+
+NEG lucro_eng
+MOV lucro_eng,-(R6)		; n
+MOV #lucro_String,-(R6)	; s
+   JSR R7,uint2str	
+   ADD #4,R6
+   MOV #lucro_String,R1 ;*s
+	JSR R7,arruma_str ;ARRUMA STRING
+   MOV tamanho_String,R0          ; tamanho da mensagem (em caracteres)		
+MOV #lucro_String,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor+26,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+	INC R2
+	 MOV R2,posicao_centavos 
+	MOV #3,R0          ; tamanho da mensagem (em caracteres)		
+MOV #centavos,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+JMP espera_relatorio
+
+imparcial:MOV #23,R0          ; tamanho da mensagem (em caracteres)
+MOV #neutro,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+espera_relatorio:JSR R7,espera_enter
+JMP selecao_engenheiro
+;-------------------------------------------------------------------------------
+;void acao(){
+;	char * acao_String="Selecione uma acao: [r] [e] [g] [f]";
+;	escreveNoVisor(acao_String,34,0);
+;	
+;	while(!(status) && (buffer!=114 || buffer!=102 || buffer!=101 || buffer!=103));
+;	switch(buffer){
+;		case 114: resumo();
+;		case 102: final();
+;		case 101: selecao_engenheiro();
+;		case 103: geral();
+;	}
+;
+;
+;}
+acoes:   CLR buffer  
+	CLR status
+	MOV #35,R0          ; tamanho da mensagem (em caracteres)
+    MOV #acao_String,R1          ; endereco da mensagem a ser escrita no visor
+    MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+espera_acao:CMP	STATUS,#H80
+	BNE		espera_acao
+CMP buffer,#101
+BEQ vai_engenheiro
+CMP buffer,#114
+BEQ vai_resumo
+CMP buffer,#102
+BEQ vai_final
+CMP buffer,#103
+BEQ vai_geral
+CLR status
+BR espera_acao
+vai_geral:CLR buffer
+	JMP geral
+vai_resumo: CLR buffer
+			JMP resumo
+vai_final: CLR buffer
+			JMP final
+
+vai_engenheiro: CLR buffer
+			JMP selecao_engenheiro
+
+;---------------------------------------------------------------------------------------------------------------------------------------------------------
+;void final(){
+;char *encerra="Operacao Encerrada";
+;escreveNoVisor(encerra,18,0);
+;system.exit();
+;}	
+	final:
+JSR R7,_S_LIMPA_VISOR_ULTRA
+MOV #18,R0          ; tamanho da mensagem (em caracteres)
+MOV #encerra,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 	
+HLT
+			
+;----------------------------------------------------------------------------------------------------------------------------------------------------------------
+;void escreveNoVisor(char *texto,small int tamanho,small int posicao)
+;{
+	;	for (; tamanho>0; tamanho--){
+;			tela[posicao]=*texto;
+;			if(posicao==35)
+;				posicao=0;
+;			posicao++;
+;			texto++;
+;		}
+;		posicao_centavos=posicao;			
+;	}
+_S_ESCREVER_NO_VISOR:
+
+
+
+__VOLTA_ESCR:
+          MOV (R1),R3           ; coloca 2 caracteres em R3
+          ASR R3                ; alinha primeiro caractere
+          ASR R3                ; a direita do registrador,
+          ASR R3                ; porque quando se escreve
+          ASR R3                ; na memoria a partir do
+          ASR R3                ; endereco 65500 apenas o byte
+          ASR R3                ; menos significativo e' escrito
+          ASR R3                ; na posicao correspondente
+          ASR R3                ; a um LED do visor
+          MOV R3,(R2)           ; move para o visor
+          SOB R0,__SEGUNDO      ; se ja moveu todo o texto,
+		
+	
+	 RTS R7                ; retorna ao ponto de chamada
+                                ; senao, vai mover o segundo
+                                ; caractere da mesma palavra
+__SEGUNDO:
+          INC R2                ; aponta para proximo LED
+          BEQ __FIM_VISOR2      ; fim do visor - volta ao LED 00
+__CONTINUA2:
+          MOV (R1)+,R3          ; mesmos 2 caracteres em R3 e
+                                ; incrementa apontador do texto
+          MOV R3,(R2)           ; desta vez, move o segundo byte
+          SOB R0,__PROXIMO_LED  ; se ja moveu todo o texto,
+          RTS R7                ; retorna ao ponto de chamada
+__PROXIMO_LED:
+          INC R2                ; senao, aponta proximo LED
+          BNE __VOLTA_ESCR      ; e repete o laco
+                                ; fim do visor - volta ao LED 00
+__FIM_VISOR1:
+          MOV #65500,R2         ; aponta para primeiro LED
+          BR  __VOLTA_ESCR      ; volta a escrever no visor
+__FIM_VISOR2:
+          MOV #65500,R2         ; aponta para primeiro LED
+          BR  __CONTINUA2       ; volta a escrever no visor
+;--------------------------------------------------------------------------------------------------
+
+;void limpa_tela()
+;{
+;	for(aux=0;aux<35;aux++)
+;		tela[aux]=0;
+;}
+
+_S_LIMPA_VISOR_ULTRA:
+          MOV R0,-(R6)          ; salva R0 na pilha
+          MOV R1,-(R6)          ; salva R1 na pilha
+          MOV #65500,R0         ; move end. do LED 0 do visor p/R1
+          MOV #65501,R1         ; move end. do LED 1 do visor p/R1
+          CLR (R0)+             ; limpa LED 00 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 01 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 02 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 03 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 04 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 05 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 06 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 07 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 08 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 09 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 10 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 11 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 12 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 13 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 14 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 15 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 16 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 17 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 18 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 19 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 20 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 21 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 22 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 23 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 24 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 25 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 26 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 27 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 28 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 29 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 30 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 31 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 32 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 33 do visor e soma 2 ao R1
+          CLR (R0)+             ; limpa LED 34 do visor e soma 2 ao R0
+          CLR (R1)+             ; limpa LED 35 do visor e soma 2 ao R1
+          MOV (R6)+,R1          ; restaura R1
+          MOV (R6)+,R0          ; restaura R0
+          RTS R7                ; retorna ao ponto de chamada
+;------------------------------------------------------------------------------------------------
+;void espera_enter()
+;{
+;    while( !(status) && buffer!=13) ; 
+;    
+;
+;}
+espera_enter:CLR status
+TST status
+CMP buffer,#13
+BEQ espera_enter_fecha
+BR espera_enter
+espera_enter_fecha: CLR buffer
+RTS R7
+;--------------------------------------------------------------------------------------------------------------------------------------------------
+;void resumo(){
+;    limpa_tela();
+;    char * NE_String;
+;    char * eng_palavra="Engenheiros:";
+;    char * cid_palavra="Cidades:";
+;    escreveNoVisor(eng_palavra,9,0);
+;    uint2str(ne,NE_String);
+;    arruma_String(NE_String);
+;    escreveNoVisor(NE_String,tamanho_String,10);
+;    escreveNoVisor(cid_palavra,8,posicao_centavos);
+;    uint2str(nc,NC_String);
+;    arruma_String(NC_String);
+;    escreveNoVisor(NC_String,tamanho_String,posicao_centavos);
+;    espera_enter();
+;	acao();
+;	}
+	
+resumo: ;tela RESUMO
+JSR R7,_S_LIMPA_VISOR_ULTRA
+MOV #12,R0          ; tamanho da mensagem (em caracteres)
+MOV #eng_palavra,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+	MOV	ne,-(R6)		; n
+	MOV #NE_String,-(R6)	; s
+	JSR R7,uint2str
+	ADD #4,R6 ;arruma pilha
+	
+	MOV #NE_String,R1 ;*s
+	JSR R7,arruma_str ;ARRUMA STRING
+	MOV tamanho_String,r0
+    MOV #NE_String,R1          ; endereco da mensagem a ser escrita no visor
+    MOV #visor+13,R2 
+JSR R7,_S_ESCREVER_NO_VISOR
+	ADD #2, R2
+	MOV R2,posicao_centavos
+    MOV #8,R0          ; tamanho da mensagem (em caracteres)
+    MOV #cid_palavra,R1          ; endereco da mensagem a ser escrita no visor
+    MOV posicao_centavos,R2 
+    JSR R7,_S_ESCREVER_NO_VISOR 
+	ADD #2, R2
+	MOV R2,posicao_centavos
+	MOV	nc,-(R6)		; n
+	MOV	#NC_String,-(R6)	; s
+	JSR	R7,uint2str
+	ADD #4,R6
+    MOV #NC_String,R1
+	JSR R7,arruma_str ;ARRUMA STRING
+	MOV tamanho_String,R0          ; tamanho da mensagem (em caracteres)
+    MOV #NC_String,R1          ; endereco da mensagem a ser escrita no visor
+    MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR
+JSR R7,espera_enter
+JSR R7,_S_LIMPA_VISOR_ULTRA
+JMP acoes
+;----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+;void calculaMaiorLucro(){
+;	for( ;indiEng<ne-1 ; indiceEng++)
+;	calcula_lucro(indiceEng);
+;		if(lucro_eng>maiorLucro){
+;		maiorLucro=lucro_eng;
+;		indiceMaior=indiceEng~;
+;		}
+;	}
+
+encontra_maiorLucro:
+MOV #0,maior_lucro
+MOV #0,prox_eng
+MOV ne,R5
+procura_lucro:MOV R5,-(R6)
+MOV R3,-(R6)
+MOV prox_eng,R5   ;numero do engenheiro
+JSR R7,calcula_lucro
+MOV (R6)+,R3
+MOV (R6)+,R5
+MOV R4,lista_lucro(R3)
+CMP R4,maior_lucro
+BMI nao_muda
+MOV R4,maior_lucro
+MOV prox_eng,indice_maiorLc
+nao_muda:INC prox_eng
+ADD #2,R3
+SOB R5,procura_lucro
+TST prox_eng
+BEQ achar_prejuizo
+RTS R7
+achar_prejuizo:
+MOV ne,eng_loop
+MOV #0,indice_maiorLc
+MOV #0,prox_eng
+MOV #0,R3
+MOV lista_lucro(R2),R3
+CMP maior_lucro,r3
+BLS pula_brench ;																VERIFICAR QUAL BRENCH UTILIZAR
+MOV R3,maior_lucro
+ASR R2
+MOV R2,indice_maiorLc
+ASL R2
+pula_brench:
+;SOB eng_loop
+RTS R7
+	
+;---------------------------------------------------------------------------------------------------------------------------------------------------------------
+;void relatorio_geral(){
+;	calculaMaiorLucro();
+;	char * maiorL="Maior Lucro: R$";
+;	char *doEng="do Eng:";
+;	escreveNoVisor(&maiorL,14,0);
+;	uint2str(&maiorLucroString,maiorLucro);
+;	arrumaString(&maiorLucroString);
+;	escreveNoVisor(&maiorLucroString,tamanhoString,0);
+;	escreveNoVisor(&doEng,7,posicao_centavos);
+;	escreveNoVisor();
+;		uint2str(&indMaiorString,indiceMaior);
+;	arrumaString(&indMaiorString);
+;	espera_enter();
+;	acao();
+;}	
+
+
+geral:JSR R7,_S_LIMPA_VISOR_ULTRA
+ JSR R7,encontra_maiorLucro
+MOV #16,R0          ; tamanho da mensagem (em caracteres)
+MOV #maiorLucro_Texto,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor,R2 
+JSR R7,_S_ESCREVER_NO_VISOR
+
+
+MOV maior_lucro,-(R6)		; n    
+MOV #maior_lucro_String,-(R6)	; s------/
+JSR R7,uint2str	
+ADD #4,R6 
+
+MOV #maior_lucro_String,R1 ;*s
+	JSR R7,arruma_str ;ARRUMA STRING
+	
+MOV tamanho_String,R0          ; tamanho da mensagem (em caracteres)
+MOV #maior_lucro_String,R1          ; endereco da mensagem a ser escrita no visor
+MOV #visor+16,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+
+	 INC R2
+	 MOV R2,posicao_centavos 
+
+	 MOV #3,R0          ; tamanho da mensagem (em caracteres)		
+MOV #centavos,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+INC R2
+MOV R2,posicao_centavos
+	 MOV #9,R0          ; tamanho da mensagem (em caracteres)	
+MOV #do_eng,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+INC R2
+MOV R2,posicao_centavos
+MOV indice_maiorLc,-(R6)		; n    
+MOV #indice_maiorLc_String,-(R6)	; s------/
+JSR R7,uint2str	
+ADD #4,R6 
+
+MOV #indice_maiorLc_String,R1 ;*s
+	JSR R7,arruma_str ;ARRUMA STRING
+MOV tamanho_String,R0          ; tamanho da mensagem (em caracteres)	
+MOV #indice_maiorLc_String,R1          ; endereco da mensagem a ser escrita no visor
+MOV posicao_centavos,R2 
+JSR R7,_S_ESCREVER_NO_VISOR 
+	
+	JSR R7,espera_enter 
+    JMP  acoes
+;------------------------------------------------------------------------------------------------------------------------------------------------------------------
+;VARIAVEIS GLOBAIS USADAS PELOS COMENTÁRIOS EM C
+   ; char tela[35];//ponteiro para posicao de memoria da tela
+   ; char buffer=0;//eh alterado quando algum valor eh inserido pelo teclado do Cesar
+   ; char status=0;
+   ; char posicao_centavos=0;    
+   ; unsigned small int ne;
+   ; unsigned small int nc;
+   ; unsgined small int numero_lido;
+   ; char *numero_lidoString;
+   ; char indiceEng=0
+   ; char indiceMaior=0;
+   ; small int maiorLucro=0;
+  ;    small int *ListaEng;
+ ;   small int *ListaCid;
+  ;  small int lucro_eng=0;
+   ; char * lucro_String;
+
+;----------------------------------------------
+
+indice_maiorLc_String: DAB [8]
+maior_lucro_String: DAB [8]
+maior_lucro: DW 0 
+indice_maiorLc: DW 0
+lista_lucro: DW 0
+prox_eng: DW 0
+eng_loop: DW 0
+
+maiorLucro_Texto: DAB 'Maior lucro: R$ '
+tamanho_String: DW 0
+lucro_String: DAB [8]
+numero_lido_String: DAB [8]
+centavos: DAB ',00'
+NE_String: DAB [8]
+NC_String: DAB [8]
+frase_lucro: DAB ', lucro R$ '
+do_eng: DAB ' do eng: '
+lucro_eng: DW 0
+
+neutro: DAB ', sem lucro ou prejuizo'
+numero_lido: DW 0
+erro_String: DAB 'Engenheiro invalido!',0
+prejuizo_String: DAB ', prejuizo R$ '
+acao_String: DAB 'Selecione uma acao: [r] [e] [g] [f]'
+entrada:	DAB	'Aluno:Vinicius Perego Cartao:242287'
+encerra: DAB 'Operacao Encerrada'
+eng_palavra: DAB 'Engenheiros:'
+eng_palavra_final: DB 0
+cid_palavra: DAB 'Cidades:'
+cid_palavra_final: DB 0
+eng_palavra_sel: DAB 'Engenheiro:'
+posicao_centavos: DW 0
+ORG 31000
+pilha:
+
+ORG 32768
+
+ne: DW 0 ;numero de engenheiros
+le: DW 
+nc: DW 0;numero de cidades 
+lc: DW 
+
+
+
+
+
+
+ORG 65498
+status: DB 0
+buffer: DB 0
+ORG 65500
+visor: DB 0

@@ -1,0 +1,49 @@
+;int main(void)
+;{
+;    unsigned char VISITAS[31];
+;    char total,aux,indice;
+;    char LUCRO[16];
+;    for(aux=VISITAS[0]; aux>0; aux--)
+;    {
+;        indice=VISITAS[aux];
+;        total+=LUCRO[indice];
+;    }
+;}
+
+LDR X,visita0 ;aux=VISITAS[0]
+loop: 
+JZ fim ;aux>0
+LDR B,visita0,X 
+ADD B,#208
+STR B,indice
+ADD A,indice,I
+SUB X,#1 ;aux--
+
+
+JMP loop
+
+
+fim:STR A,lucro ;TOTAL+=LUCRO[indice]
+LDR A,#0
+STR A,indice
+HLT
+
+
+ORG 128
+indice: DB 0
+
+
+
+ORG 208
+lucro0: DB 0
+lucro1: DB 0
+lucro2: DB 0
+
+
+ORG 224
+visita0: DB 3
+visita1: DB 0
+visita2: DB 0
+visita3: DB 0
+ORG 255
+lucro: DB 0
